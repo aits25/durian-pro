@@ -57,8 +57,11 @@ import {
   Info,
   BookOpen,
   Search,
-  Tag
+  Tag,
+  MessageSquare
 } from 'lucide-react';
+import { GeminiProvider } from './GeminiContext';
+import AIAdvisor from './AIAdvisor';
 
 // --- CONFIGURATION ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4H_D-vUZ2hRxHXuWZVcaPGdvWeXAkD2kuw95XCUXSpCPr9C8vvz-khkjXqUvlKYT3w/exec"; 
@@ -1343,6 +1346,7 @@ const App = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
+  const [aiAdvisorOpen, setAiAdvisorOpen] = useState(false);
 
   const syncToCloud = async (action, data, isAuto = false) => {
     if (!GOOGLE_SCRIPT_URL) return;
@@ -1461,16 +1465,17 @@ const App = () => {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-      {notification && (
-        <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'success' ? 'bg-gray-800 text-green-400' : 'bg-red-600 text-white'}`}>
-          {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-          <span className="font-medium text-sm">{notification.message}</span>
-        </div>
-      )}
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b border-gray-200 p-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+    <GeminiProvider>
+      <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+        {notification && (
+          <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'success' ? 'bg-gray-800 text-green-400' : 'bg-red-600 text-white'}`}>
+            {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+            <span className="font-medium text-sm">{notification.message}</span>
+          </div>
+        )}
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="bg-white border-b border-gray-200 p-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-4">
              <div className="md:hidden"><button onClick={() => setSidebarOpen(true)} className="p-2 bg-gray-100 rounded-lg text-gray-600"><Menu size={20} /></button></div>
              <BrandBadge size="sm" />
@@ -1482,6 +1487,13 @@ const App = () => {
              <div className="hidden lg:flex flex-col text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">สถานะ</p><p className="text-xs font-bold text-green-600">ออนไลน์</p></div>
              <button onClick={fetchData} className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center text-green-600 border border-green-100">
                 <RefreshCcw size={18} className={isSyncing ? 'animate-spin' : ''} />
+             </button>
+             <button 
+               onClick={() => setAiAdvisorOpen(true)}
+               className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center text-white border border-green-600 transition-all hover:shadow-lg"
+               title="AI Advisor - ปรึกษาเกี่ยวกับการดูแลทุเรียนและโรคพืช"
+             >
+               <MessageSquare size={18} />
              </button>
           </div>
         </header>
@@ -1557,8 +1569,10 @@ const App = () => {
           {activeTab === 'Chemicals' && <ChemicalsTab />}
           {activeTab === 'Fungicides' && <FungicidesTab />}
         </main>
+        </div>
       </div>
-    </div>
+      <AIAdvisor isOpen={aiAdvisorOpen} onClose={() => setAiAdvisorOpen(false)} />
+    </GeminiProvider>
   );
 };
 

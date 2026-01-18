@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* การตั้งค่า Theme สำหรับ Tailwind v4 */
+@theme {
+  --font-sans: "Inter", "Sarabun", sans-serif;
+  
+  /* คุณสามารถเพิ่ม Custom Color หรือค่าอื่นๆ ตรงนี้ได้ */
+  --color-brand-green: #14532d;
+  --color-brand-yellow: #facc15;
+}
+
+/* ตั้งค่าพื้นฐานสำหรับแอป Durian Pro */
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar สำหรับตารางและ Dashboard */
+@layer utilities {
+  .custom-scrollbar {
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      @apply bg-transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      @apply bg-gray-300 rounded-full hover:bg-gray-400 transition-colors;
+    }
+  }
+}

@@ -842,9 +842,12 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
 const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError }) => { 
   const [newActivity, setNewActivity] = useState({
     date: new Date().toISOString().split('T')[0],
-    orchard: ORCHARD_LIST[0].name, 
+    orchard: ORCHARD_LIST[0].name,
     type: 'ฉีดยา',
     details: '',
+    product: '',
+    dosage: '',
+    unit: 'ml'
   });
   const [filterOrchard, setFilterOrchard] = useState('ทั้งหมด');
   const [filterType, setFilterType] = useState('ทั้งหมด');
@@ -854,6 +857,44 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
      const types = new Set([...PRESET_ACTIVITIES, ...safeData.map(d => d.type)]);
      return Array.from(types).filter(Boolean).sort();
   }, [safeData]);
+  // cloud-backed chemical search
+  const [chemicalSearch, setChemicalSearch] = useState('');
+  const [cloudChemicals, setCloudChemicals] = useState([]);
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const searchControllerRef = useRef(null);
+  const searchTimerRef = useRef(null);
+
+  const fetchCloudProducts = async (q = '') => {
+    if (!GOOGLE_SCRIPT_URL) return;
+    try {
+      if (searchControllerRef.current) {
+        try { searchControllerRef.current.abort(); } catch (e) {}
+      }
+      const controller = new AbortController();
+      searchControllerRef.current = controller;
+      setCloudLoading(true);
+      const url = `${GOOGLE_SCRIPT_URL}?action=getProducts${q ? `&q=${encodeURIComponent(q)}` : ''}&_=${Date.now()}`;
+      const res = await fetch(url, { signal: controller.signal });
+      const json = await res.json();
+      const list = (json?.data || json || []);
+      setCloudChemicals(Array.isArray(list) ? list.slice(0, 200) : []);
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      console.error('fetchCloudProducts error', e);
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    if (chemicalSearch && chemicalSearch.length >= 2) {
+      searchTimerRef.current = setTimeout(() => fetchCloudProducts(chemicalSearch), 300);
+    } else if (chemicalSearch === '') {
+      setCloudChemicals([]);
+    }
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [chemicalSearch]);
   const filteredData = useMemo(() => {
     return safeData.filter(item => 
       (filterOrchard === 'ทั้งหมด' || item.orchard === filterOrchard) &&
@@ -866,7 +907,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
     const activity = { id: generateId(), ...newActivity, status: 'Pending' };
     const updatedData = [activity, ...data];
     setData(updatedData);
-    setNewActivity({ ...newActivity, details: '' });
+    setNewActivity({ ...newActivity, details: '', product: '', dosage: '', unit: 'ml' });
     syncToCloud('saveMaintenance', updatedData, true);
   };
   const handleDeleteActivity = (id) => {
@@ -917,7 +958,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">กิจกรรม</label>
-                <div className="flex flex-wrap gap-2 mb-2">
+                  <div className="flex flex-wrap gap-2 mb-2">
                   {PRESET_ACTIVITIES.map(type => (
                     <button key={type} type="button" onClick={() => setNewActivity({...newActivity, type})} className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-all ${newActivity.type === type ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
                       {type}
@@ -927,6 +968,48 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                 </div>
                 {!PRESET_ACTIVITIES.includes(newActivity.type) && (
                    <input type="text" className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all animate-in fade-in slide-in-from-top-1" placeholder="ระบุกิจกรรม (เช่น ตัดแต่งกิ่ง, โยงกิ่ง)" value={newActivity.type} onChange={(e) => setNewActivity({...newActivity, type: e.target.value})} required />
+                )}
+                {newActivity.type === 'ฉีดยา' && (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">สารเคมีที่ใช้ (ค้นหาจาก Cloud)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                          placeholder="พิมพ์ชื่อสารเคมี..."
+                          value={chemicalSearch}
+                          onChange={(e) => setChemicalSearch(e.target.value)}
+                        />
+                        <button type="button" onClick={() => fetchCloudProducts(chemicalSearch)} className="p-2 bg-white border rounded-md text-gray-600 hover:bg-gray-50" title="รีเฟรช">
+                          <RefreshCcw size={16} />
+                        </button>
+                      </div>
+                      {cloudLoading && <div className="text-sm text-gray-500 mt-1">กำลังค้นจาก Cloud...</div>}
+                      {!cloudLoading && cloudChemicals.length === 0 && chemicalSearch.length >= 2 && (
+                        <div className="text-sm text-gray-500 mt-1">ไม่พบบันทึกจาก Cloud</div>
+                      )}
+                      {cloudChemicals.length > 0 && (
+                        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg mt-2 max-h-56 overflow-auto shadow-lg">
+                          {cloudChemicals.map(p => (
+                            <button key={p.id || p.name} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm" onClick={() => {
+                              setNewActivity(prev => ({ ...prev, product: p.name, details: prev.details ? `${p.name} — ${prev.details}` : p.name }));
+                              setChemicalSearch(p.name);
+                            }}>{p.name}{p.brand ? ` • ${p.brand}` : ''}{p.active ? ` (${p.active})` : ''}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input type="text" placeholder="ปริมาณ (เช่น 50)" value={newActivity.dosage} onChange={(e) => setNewActivity({...newActivity, dosage: e.target.value})} className="col-span-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none" />
+                      <select value={newActivity.unit} onChange={(e) => setNewActivity({...newActivity, unit: e.target.value})} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none">
+                        <option value="ml">ml</option>
+                        <option value="L">L</option>
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                      </select>
+                    </div>
+                  </div>
                 )}
               </div>
               <div>

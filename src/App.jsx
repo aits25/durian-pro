@@ -69,10 +69,10 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4H_D-vUZ2h
 // --- MASTER DATA ---
 const ORCHARD_LIST = [
   { id: 'O-001', name: 'สถานีหมอนทอง', area: '18 ไร่' },
-  //{ id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
-  //{ id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
+  { id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
+  { id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
   { id: 'O-004', name: 'ไทรห้อย', area: '5 ไร่' },
-  //{ id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
+  { id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
   { id: 'O-006', name: '13 ไร่', area: '13 ไร่' },  
 ];
 

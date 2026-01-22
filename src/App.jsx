@@ -69,11 +69,11 @@ const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4H_D-vUZ2h
 // --- MASTER DATA ---
 const ORCHARD_LIST = [
   { id: 'O-001', name: 'สถานีหมอนทอง', area: '18 ไร่' },
-  { id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
-  { id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
+  //{ id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
+  //{ id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
   { id: 'O-004', name: 'ไทรห้อย', area: '5 ไร่' },
-  { id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
-  { id: 'O-006', name: '13 ไร่', area: '12 ไร่' },  
+  //{ id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
+  { id: 'O-006', name: '13 ไร่', area: '13 ไร่' },  
 ];
 
 const CARETAKER_LIST = ["พี่เรย์-เอก", "ติง-พิมพ์", "ซัลไล", "บ่าว", "ไม่มี"];
@@ -846,6 +846,8 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
     type: 'ฉีดยา',
     details: '',
     product: '',
+    productActive: '',
+    productGroup: '',
     dosage: '',
     unit: 'ml'
   });
@@ -863,6 +865,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
   const [cloudLoading, setCloudLoading] = useState(false);
   const searchControllerRef = useRef(null);
   const searchTimerRef = useRef(null);
+  const chemicalInputRef = useRef(null);
 
   const fetchCloudProducts = async (q = '') => {
     if (!GOOGLE_SCRIPT_URL) return;
@@ -877,7 +880,13 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
       const res = await fetch(url, { signal: controller.signal });
       const json = await res.json();
       const list = (json?.data || json || []);
-      setCloudChemicals(Array.isArray(list) ? list.slice(0, 200) : []);
+      const mapped = Array.isArray(list) ? list.slice(0, 200).map(p => ({
+        id: p.id || p.productId || p.name || generateId(),
+        name: p.name || p.productName || p['ชื่อสินค้า'] || '',
+        active: p.activeIngredient || p.active || p['active'] || p['สารสำคัญ'] || '',
+      
+      })) : [];
+      setCloudChemicals(mapped);
     } catch (e) {
       if (e.name === 'AbortError') return;
       console.error('fetchCloudProducts error', e);
@@ -905,9 +914,22 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
   const handleAddActivity = (e) => {
     e.preventDefault();
     const activity = { id: generateId(), ...newActivity, status: 'Pending' };
+    // Resistance management check: warn if last spray for this orchard used the same chemical group
+    if (newActivity.type === 'ฉีดยา' && newActivity.productGroup) {
+      const previousSprays = (data || []).filter(a => a.orchard === newActivity.orchard && a.type === 'ฉีดยา');
+      if (previousSprays.length) {
+        const last = previousSprays.sort((a,b) => dateToValue(b.date) - dateToValue(a.date))[0];
+        const lastGroup = last.productGroup || last.group || '';
+        if (lastGroup && lastGroup === newActivity.productGroup) {
+          setNotification({ message: 'เตือน: กลุ่มสารเคมีเดียวกับครั้งล่าสุด — ควรสลับกลุ่มเพื่อลดความต้านทาน', type: 'error' });
+          setTimeout(() => setNotification(null), 5000);
+        }
+      }
+    }
+
     const updatedData = [activity, ...data];
     setData(updatedData);
-    setNewActivity({ ...newActivity, details: '', product: '', dosage: '', unit: 'ml' });
+    setNewActivity({ ...newActivity, details: '', product: '', productActive: '', productGroup: '', dosage: '', unit: 'ml' });
     syncToCloud('saveMaintenance', updatedData, true);
   };
   const handleDeleteActivity = (id) => {
@@ -978,6 +1000,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                           type="text"
                           className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                           placeholder="พิมพ์ชื่อสารเคมี..."
+                          ref={chemicalInputRef}
                           value={chemicalSearch}
                           onChange={(e) => setChemicalSearch(e.target.value)}
                         />
@@ -992,22 +1015,23 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                       {cloudChemicals.length > 0 && (
                         <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg mt-2 max-h-56 overflow-auto shadow-lg">
                           {cloudChemicals.map(p => (
-                            <button key={p.id || p.name} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50 text-sm" onClick={() => {
-                              setNewActivity(prev => ({ ...prev, product: p.name, details: prev.details ? `${p.name} — ${prev.details}` : p.name }));
+                            <button key={p.id || p.name} type="button" className="w-full text-left px-3 py-2 hover:bg-gray-50" onClick={() => {
+                              const additional = [p.active && `สารสำคัญ: ${p.active}`, p.group && `กลุ่ม: ${p.group}`].filter(Boolean).join(' • ');
+                              setNewActivity(prev => ({ ...prev, product: p.name, productActive: p.active || '', productGroup: p.group || '', details: prev.details ? `${p.name}${additional ? ` (${additional})` : ''} — ${prev.details}` : `${p.name}${additional ? ` (${additional})` : ''}` }));
                               setChemicalSearch(p.name);
-                            }}>{p.name}{p.brand ? ` • ${p.brand}` : ''}{p.active ? ` (${p.active})` : ''}</button>
+                              setCloudChemicals([]);
+                              try { chemicalInputRef.current?.blur(); } catch (e) {}
+                            }}>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium text-gray-800 truncate">{p.name}</span>
+                                {(p.active || p.group) && (
+                                  <span className="text-xs text-gray-500 mt-0.5 truncate">{p.active ? `สารสำคัญ: ${p.active}` : ''}{p.active && p.group ? ' • ' : ''}{p.group ? `กลุ่ม: ${p.group}` : ''}</span>
+                                )}
+                              </div>
+                            </button>
                           ))}
                         </div>
                       )}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <input type="text" placeholder="ปริมาณ (เช่น 50)" value={newActivity.dosage} onChange={(e) => setNewActivity({...newActivity, dosage: e.target.value})} className="col-span-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none" />
-                      <select value={newActivity.unit} onChange={(e) => setNewActivity({...newActivity, unit: e.target.value})} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none">
-                        <option value="ml">ml</option>
-                        <option value="L">L</option>
-                        <option value="g">g</option>
-                        <option value="kg">kg</option>
-                      </select>
                     </div>
                   </div>
                 )}
@@ -1040,7 +1064,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                <div className="col-span-2">วันที่</div>
                <div className="col-span-3">สวน</div>
                <div className="col-span-2">ประเภท</div>
-               <div className="col-span-4">รายละเอียด</div>
+               <div className="col-span-2">รายละเอียด</div>
                <div className="col-span-1"></div>
              </div>
              {filteredData.length === 0 ? (
@@ -1054,7 +1078,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                     <div className="col-span-2 text-sm text-gray-600 font-medium">{formatToThaiDate(item.date)}</div>
                     <div className="col-span-3 text-sm text-gray-800 truncate font-medium">{item.orchard}</div>
                     <div className="col-span-2 flex items-center gap-2">{getIcon(item.type)}<span className="text-sm text-gray-700 font-medium truncate">{item.type}</span></div>
-                    <div className="col-span-4 text-xs text-gray-500 truncate">{item.details}</div>
+                    <div className="col-span-5 text-xs text-gray-600 truncate">{item.details}</div>
                     <div className="col-span-1 flex justify-end">
                        <button onClick={() => handleDeleteActivity(item.id)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all p-1.5"><Trash2 size={14} /></button>
                     </div>
@@ -1466,7 +1490,10 @@ const App = () => {
         ...item,
         id: item.id || generateId(),
         date: normalizeDate(item.date || item['วันที่'] || ''),
-        image: item.image || item.billUrl || item['หลักฐาน'] || item['หลักฐานการจ่ายเงิน'] || item['รูปภาพ'] || null
+        image: item.image || item.billUrl || item['หลักฐาน'] || item['หลักฐานการจ่ายเงิน'] || item['รูปภาพ'] || null,
+        product: item.product || item.productName || item.name || item['ชื่อสินค้า'] || item['สินค้า'] || '',
+        productActive: item.productActive || item.active || item.activeIngredient || item['สารสำคัญ'] || '',
+        productGroup: item.productGroup || item.group || item.chemicalGroup || item['กลุ่มสารเคมี'] || ''
       });
 
       const sales = (responses[0]?.data || responses[0] || []).map(mapItem);

@@ -60,23 +60,12 @@ import {
   Tag,
   MessageSquare
 } from 'lucide-react';
-import { GeminiProvider } from './GeminiContext';
-import AIAdvisor from './AIAdvisor';
+// ...existing code...
 
 // --- CONFIGURATION ---
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwm4H_D-vUZ2hRxHXuWZVcaPGdvWeXAkD2kuw95XCUXSpCPr9C8vvz-khkjXqUvlKYT3w/exec"; 
 
-// --- MASTER DATA ---
-const ORCHARD_LIST = [
-  { id: 'O-001', name: 'สถานีหมอนทอง', area: '18 ไร่' },
-  { id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
-  { id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
-  { id: 'O-004', name: 'ไทรห้อย', area: '5 ไร่' },
-  { id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
-  { id: 'O-006', name: '13 ไร่', area: '13 ไร่' },  
-];
 
-const CARETAKER_LIST = ["พี่เรย์-เอก", "ติง-พิมพ์", "ซัลไล", "บ่าว", "ไม่มี"];
 
 const HARVEST_GRADES = [
   { id: 'grade_a', name: 'เบอร์ดี', color: 'bg-green-100 text-green-700', barColor: 'bg-green-500', hex: '#22c55e' },
@@ -469,7 +458,7 @@ const FungicidesTab = () => {
   );
 };
 
-const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError }) => { 
+const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError, orchardList, caretakerList }) => { 
     // --- Print Report Logic ---
     const handlePrintReport = () => {
       const now = new Date();
@@ -575,8 +564,8 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
   const [isFormOpen, setIsFormOpen] = useState(false); 
   const [newItem, setNewItem] = useState({ 
     date: new Date().toISOString().split('T')[0], 
-    orchard: ORCHARD_LIST[0].name, 
-    caretaker: CARETAKER_LIST[0], 
+    orchard: orchardList[0]?.name || '',
+    caretaker: caretakerList[0] || '',
     type: 'เบอร์ดี', 
     weight: '', 
     price: '' 
@@ -601,7 +590,7 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
   const avgPrice = totalWeight > 0 ? (totalSales / totalWeight) : 0;
 
   const orchardSalesStackedData = useMemo(() => {
-    const orchardGroups = ORCHARD_LIST.map(orchard => {
+    const orchardGroups = orchardList.map(orchard => {
       const orchardItems = filteredData.filter(item => item.orchard === orchard.name);
       const gradesData = HARVEST_GRADES.map(grade => {
         const val = orchardItems
@@ -653,7 +642,7 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
       updatedData = [{ ...newItem, id: generateId(), weight, price, total }, ...safeData];
     }
     setData(updatedData);
-    setNewItem({ date: new Date().toISOString().split('T')[0], orchard: ORCHARD_LIST[0].name, caretaker: CARETAKER_LIST[0], type: 'เบอร์ดี', weight: '', price: '' });
+    setNewItem({ date: new Date().toISOString().split('T')[0], orchard: orchardList[0]?.name || '', caretaker: caretakerList[0] || '', type: 'เบอร์ดี', weight: '', price: '' });
     syncToCloud('saveHarvest', updatedData, true);
   };
 
@@ -661,7 +650,7 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
     setNewItem({
       date: normalizeDate(item.date),
       orchard: item.orchard,
-      caretaker: item.caretaker === '-' ? CARETAKER_LIST[0] : (item.caretaker || CARETAKER_LIST[0]),
+      caretaker: item.caretaker === '-' ? caretakerList[0] : (item.caretaker || caretakerList[0]),
       type: item.type,
       weight: item.weight,
       price: item.price
@@ -830,13 +819,13 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">สวนที่ผลิต</label>
                     <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all" value={newItem.orchard} onChange={(e) => setNewItem({...newItem, orchard: e.target.value})}>
-                      {ORCHARD_LIST.map(o => <option key={o.id}>{o.name}</option>)}
+                      {orchardList.map(o => <option key={o.id}>{o.name}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ผู้ดูแลรับผิดชอบ</label>
                     <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all" value={newItem.caretaker} onChange={(e) => setNewItem({...newItem, caretaker: e.target.value})}>
-                      {CARETAKER_LIST.map((name, index) => <option key={index} value={name}>{name}</option>)}
+                      {caretakerList.map((name, index) => <option key={index} value={name}>{name}</option>)}
                     </select>
                   </div>
                   <div>
@@ -887,11 +876,11 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
                </div>
                <select className="bg-white border border-gray-200 text-sm text-gray-600 rounded-lg px-3 py-1.5 outline-none flex-1 sm:flex-none" value={filterCaretaker} onChange={e => setFilterCaretaker(e.target.value)}>
                  <option value="ทั้งหมด">ผู้ดูแลทั้งหมด</option>
-                 {CARETAKER_LIST.map(c => <option key={c} value={c}>{c}</option>)}
+                 {caretakerList.map(c => <option key={c} value={c}>{c}</option>)}
                </select>
                <select className="bg-white border border-gray-200 text-sm text-gray-600 rounded-lg px-3 py-1.5 outline-none flex-1 sm:flex-none" value={filterOrchard} onChange={e => setFilterOrchard(e.target.value)}>
                  <option value="ทั้งหมด">สวนทั้งหมด</option>
-                 {ORCHARD_LIST.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                 {orchardList.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
                </select>
              </div>
              <div className="flex justify-end">
@@ -920,19 +909,22 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
             ) : (
               <div className="divide-y divide-gray-100">
                 {filteredData.map((item) => (
-                    <div key={item.id} className="group grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
-                       <div className="col-span-2 text-sm text-gray-600 font-medium">{formatToThaiDate(item.date)}</div>
-                       <div className="col-span-2 text-sm text-gray-800 font-semibold truncate">{item.orchard}</div>
-                       <div className="col-span-2"><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${HARVEST_GRADES.find(g => g.name === item.type)?.color || 'bg-gray-100 text-gray-600'}`}>{item.type}</span></div>
-                       <div className="col-span-1 text-right text-sm text-gray-600">{item.weight?.toLocaleString()}</div>
-                       <div className="col-span-1 text-right text-sm text-gray-600">{item.price?.toLocaleString()}</div>
-                       <div className="col-span-2 text-right text-sm font-bold text-green-600">{item.total?.toLocaleString()}</div>
-                       <div className="col-span-1 text-xs text-gray-400 truncate">{item.caretaker || '-'}</div>
-                       <div className="col-span-1 flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => handleEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"><Pencil size={14} /></button>
-                          <button onClick={() => handleDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"><Trash2 size={14} /></button>
-                       </div>
-                    </div>
+                      <div key={item.id} className="group grid grid-cols-12 gap-2 px-4 py-3 items-center hover:bg-gray-50 transition-colors">
+                        <div className="col-span-2 text-sm text-gray-600 font-medium">{formatToThaiDate(item.date)}</div>
+                        <div className="col-span-2 text-sm text-gray-800 font-semibold truncate">{item.orchard}</div>
+                        <div className="col-span-2"><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${HARVEST_GRADES.find(g => g.name === item.type)?.color || 'bg-gray-100 text-gray-600'}`}>{item.type}</span></div>
+                        <div className="col-span-1 text-right text-sm text-gray-600">{item.weight?.toLocaleString()}</div>
+                        <div className="col-span-1 text-right text-sm text-gray-600">{item.price?.toLocaleString()}</div>
+                        <div className="col-span-2 text-right text-sm font-bold text-green-600">{item.total?.toLocaleString()}</div>
+                        <div className="col-span-1 text-xs text-gray-400 truncate">{item.caretaker || '-'}</div>
+                        <div className="col-span-1 flex flex-col justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="whitespace-pre-line break-words text-xs text-gray-700 max-w-xs">{item.details}</div>
+                          <div className="flex gap-1 mt-1">
+                           <button onClick={() => handleEdit(item)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50"><Pencil size={14} /></button>
+                           <button onClick={() => handleDelete(item.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded hover:bg-red-50"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+                      </div>
                 ))}
               </div>
             )}
@@ -943,10 +935,10 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
   );
 };
 
-const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError }) => { 
+const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError, orchardList, caretakerList }) => { 
   const [newActivity, setNewActivity] = useState({
     date: new Date().toISOString().split('T')[0],
-    orchard: ORCHARD_LIST[0].name,
+    orchard: orchardList[0]?.name || '',
     type: 'ฉีดยา',
     details: '',
     product: '',
@@ -1079,7 +1071,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">สวน</label>
                 <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" value={newActivity.orchard} onChange={(e) => setNewActivity({...newActivity, orchard: e.target.value})}>
-                  {ORCHARD_LIST.map(o => <option key={o.id}>{o.name}</option>)}
+                  {orchardList.map(o => <option key={o.id}>{o.name}</option>)}
                 </select>
               </div>
               <div>
@@ -1155,7 +1147,7 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
                <div className="flex gap-2 w-full sm:w-auto">
                  <select className="bg-white border border-gray-200 text-sm text-gray-600 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none flex-1 sm:flex-none" value={filterOrchard} onChange={e => setFilterOrchard(e.target.value)}>
                    <option value="ทั้งหมด">สวนทั้งหมด</option>
-                   {ORCHARD_LIST.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                   {orchardList.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
                  </select>
                  <select className="bg-white border border-gray-200 text-sm text-gray-600 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none flex-1 sm:flex-none" value={filterType} onChange={e => setFilterType(e.target.value)}>
                    <option value="ทั้งหมด">ประเภททั้งหมด</option>
@@ -1197,14 +1189,14 @@ const MaintenanceTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetc
   );
 };
 
-const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
+const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, orchardList, caretakerList }) => {
   const [newExpense, setNewExpense] = useState({ 
     date: new Date().toISOString().split('T')[0], 
-    orchard: ORCHARD_LIST[0].name, 
+    orchard: orchardList[0]?.name || '', 
     type: 'ค่าปุ๋ย', 
     amount: '', 
     details: '',
-    caretaker: CARETAKER_LIST[0],
+    caretaker: caretakerList[0] || '',
     image: null
   });
   const [preview, setPreview] = useState(null);
@@ -1271,7 +1263,7 @@ const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
     const expenseItem = { ...newExpense, id: generateId(), amount: safeParseFloat(newExpense.amount) };
     const updated = [expenseItem, ...safeData];
     setData(updated);
-    setNewExpense({...newExpense, amount: '', details: '', caretaker: CARETAKER_LIST[0], image: null});
+    setNewExpense({...newExpense, amount: '', details: '', caretaker: caretakerList[0] || '', image: null});
     setPreview(null);
     if(fileInputRef.current) fileInputRef.current.value = "";
     syncToCloud('saveExpenses', updated, true);
@@ -1424,7 +1416,7 @@ const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
                  <div>
                    <label className="block text-sm font-medium text-gray-700 mb-1">สวน</label>
                    <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all" value={newExpense.orchard} onChange={e => setNewExpense({...newExpense, orchard: e.target.value})}>
-                     {ORCHARD_LIST.map(o => <option key={o.id}>{o.name}</option>)}
+                     {orchardList.map(o => <option key={o.id}>{o.name}</option>)}
                    </select>
                  </div>
                  <div>
@@ -1437,7 +1429,7 @@ const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
                     <div className="animate-in fade-in slide-in-from-top-1">
                       <label className="block text-sm font-medium text-gray-700 mb-1">ผู้เบิกเงิน</label>
                       <select className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none transition-all" value={newExpense.caretaker} onChange={e => setNewExpense({...newExpense, caretaker: e.target.value})}>
-                        {CARETAKER_LIST.map((name, index) => <option key={index} value={name}>{name}</option>)}
+                        {caretakerList.map((name, index) => <option key={index} value={name}>{name}</option>)}
                       </select>
                     </div>
                  )}
@@ -1481,7 +1473,7 @@ const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
                  </div>
                  <select className="bg-white border border-gray-200 text-xs text-gray-600 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-red-500 outline-none flex-1 sm:flex-none" value={filterOrchard} onChange={e => setFilterOrchard(e.target.value)}>
                    <option value="ทั้งหมด">สวนทั้งหมด</option>
-                   {ORCHARD_LIST.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                   {orchardList.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
                  </select>
                  <select className="bg-white border border-gray-200 text-xs text-gray-600 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-red-500 outline-none flex-1 sm:flex-none" value={filterType} onChange={e => setFilterType(e.target.value)}>
                    <option value="ทั้งหมด">หมวดหมู่ทั้งหมด</option>
@@ -1547,6 +1539,30 @@ const ExpensesTab = ({ data, setData, syncToCloud, isSyncing, onRefresh }) => {
 };
 
 const App = () => {
+  // --- MULTI-USER STATE ---
+  // ตัวอย่าง user (ควรเชื่อมต่อระบบ auth จริงในอนาคต)
+  const [userId, setUserId] = useState('user_demo');
+  const [userProfile, setUserProfile] = useState({ name: 'Demo User', email: 'demo@example.com' });
+
+  // สวนและผู้ดูแลเป็น state เพื่อให้เพิ่ม/ลบ/แก้ไขได้
+  const [orchardList, setOrchardList] = useState([
+    { id: 'O-001', name: 'สถานีหมอนทอง', area: '18 ไร่' },
+    { id: 'O-002', name: 'ถ้ำหลวง', area: '20 ไร่' },
+    { id: 'O-003', name: 'สวนนบ', area: '5 ไร่' },
+    { id: 'O-004', name: 'ไทรห้อย', area: '5 ไร่' },
+    { id: 'O-005', name: 'หลังโรงเรียน', area: '10 ไร่' },
+    { id: 'O-006', name: '13 ไร่', area: '13 ไร่' },  
+  ]);
+  const [caretakerList, setCaretakerList] = useState(["พี่เรย์-เอก", "ติง-พิมพ์", "ซัลไล", "บ่าว", "ไม่มี"]);
+
+  // ฟังก์ชันเพิ่มสวน
+  const addOrchard = (name, area) => {
+    setOrchardList([...orchardList, { id: generateId(), name, area }]);
+  };
+  // ฟังก์ชันเพิ่มผู้ดูแล
+  const addCaretaker = (name) => {
+    setCaretakerList([...caretakerList, name]);
+  };
   const [activeTab, setActiveTab] = useState('overview'); 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
@@ -1557,7 +1573,7 @@ const App = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [aiAdvisorOpen, setAiAdvisorOpen] = useState(false);
+  // ลบ aiAdvisorOpen
 
   const syncToCloud = async (action, data, isAuto = false) => {
     if (!GOOGLE_SCRIPT_URL) return;
@@ -1638,20 +1654,20 @@ const App = () => {
   }, []);
 
   const latestActivities = useMemo(() => {
-    return ORCHARD_LIST.map(orchard => {
+    return orchardList.map(orchard => {
       const activities = maintenanceData
         .filter(m => m.orchard === orchard.name)
         .sort((a, b) => dateToValue(b.date) - dateToValue(a.date));
       return { ...orchard, latest: activities[0] || null };
     });
-  }, [maintenanceData]);
+  }, [maintenanceData, orchardList]);
 
   const notifications = useMemo(() => {
     if (!maintenanceData.length) return [];
     const alerts = [];
     const today = new Date();
     today.setHours(0,0,0,0);
-    ORCHARD_LIST.forEach(orchard => {
+    orchardList.forEach(orchard => {
       const acts = maintenanceData.filter(m => m.orchard === orchard.name);
       const lastFert = acts.filter(a => a.type === 'ใส่ปุ๋ย').sort((a,b) => dateToValue(b.date) - dateToValue(a.date))[0];
       if(lastFert) {
@@ -1669,7 +1685,7 @@ const App = () => {
       }
     });
     return alerts.filter(a => a.days <= 3).sort((a,b) => a.days - b.days);
-  }, [maintenanceData]);
+  }, [maintenanceData, orchardList]);
 
   if(isInitialLoading) return (
     <div className="flex h-screen w-screen items-center justify-center bg-gray-50 flex-col gap-6">
@@ -1679,36 +1695,29 @@ const App = () => {
   );
 
   return (
-    <GeminiProvider>
-      <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-        {notification && (
-          <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'success' ? 'bg-gray-800 text-green-400' : 'bg-red-600 text-white'}`}>
-            {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
-            <span className="font-medium text-sm">{notification.message}</span>
-          </div>
-        )}
-        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="bg-white border-b border-gray-200 p-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+      {notification && (
+        <div className={`fixed top-6 right-6 z-[100] px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 animate-in slide-in-from-right duration-300 ${notification.type === 'success' ? 'bg-gray-800 text-green-400' : 'bg-red-600 text-white'}`}>
+          {notification.type === 'success' ? <CheckCircle size={20} /> : <AlertTriangle size={20} />}
+          <span className="font-medium text-sm">{notification.message}</span>
+        </div>
+      )}
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="bg-white border-b border-gray-200 p-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-40">
           <div className="flex items-center gap-4">
-             <div className="md:hidden"><button onClick={() => setSidebarOpen(true)} className="p-2 bg-gray-100 rounded-lg text-gray-600"><Menu size={20} /></button></div>
-             <BrandBadge size="sm" />
-             <h1 className="text-xl font-bold text-gray-800 tracking-tight uppercase italic">
-               {activeTab === 'overview' ? 'ภาพรวม' : activeTab === 'harvest' ? 'การขาย' : activeTab === 'maintenance' ? 'ตารางงาน' : activeTab === 'expenses' ? 'รายจ่าย' : activeTab === 'Chemicals' ? 'สารเคมี' : activeTab === 'catalog' ? 'สินค้าเกษตร' : 'โรคพืช'}
-             </h1>
+            <div className="md:hidden"><button onClick={() => setSidebarOpen(true)} className="p-2 bg-gray-100 rounded-lg text-gray-600"><Menu size={20} /></button></div>
+            <BrandBadge size="sm" />
+            <h1 className="text-xl font-bold text-gray-800 tracking-tight uppercase italic">
+              {activeTab === 'overview' ? 'ภาพรวม' : activeTab === 'harvest' ? 'การขาย' : activeTab === 'maintenance' ? 'ตารางงาน' : activeTab === 'expenses' ? 'รายจ่าย' : activeTab === 'Chemicals' ? 'สารเคมี' : activeTab === 'catalog' ? 'สินค้าเกษตร' : 'โรคพืช'}
+            </h1>
           </div>
           <div className="flex items-center gap-4">
-             <div className="hidden lg:flex flex-col text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">สถานะ</p><p className="text-xs font-bold text-green-600">ออนไลน์</p></div>
-             <button onClick={fetchData} className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center text-green-600 border border-green-100">
-                <RefreshCcw size={18} className={isSyncing ? 'animate-spin' : ''} />
-             </button>
-             <button 
-               onClick={() => setAiAdvisorOpen(true)}
-               className="w-9 h-9 rounded-full bg-green-600 hover:bg-green-700 flex items-center justify-center text-white border border-green-600 transition-all hover:shadow-lg"
-               title="AI Advisor - ปรึกษาเกี่ยวกับการดูแลทุเรียนและโรคพืช"
-             >
-               <MessageSquare size={18} />
-             </button>
+            <div className="hidden lg:flex flex-col text-right"><p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">สถานะ</p><p className="text-xs font-bold text-green-600">ออนไลน์</p></div>
+            <button onClick={fetchData} className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center text-green-600 border border-green-100">
+              <RefreshCcw size={18} className={isSyncing ? 'animate-spin' : ''} />
+            </button>
+            {/* ลบปุ่ม AI Advisor */}
           </div>
         </header>
         <main className="flex-1 overflow-y-auto bg-gray-50 scroll-smooth">
@@ -1719,21 +1728,21 @@ const App = () => {
                   <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2"><Bell size={20} className="text-red-500 fill-red-100"/> แจ้งเตือนงานด่วน</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {notifications.map((note) => {
-                       let statusColor = 'bg-blue-50 border-blue-100 text-blue-700';
-                       let statusText = `อีก ${note.days} วัน`;
-                       if (note.days < 0) {
-                          statusColor = 'bg-red-50 border-red-100 text-red-700';
-                          statusText = `เลยกำหนด ${Math.abs(note.days)} วัน`;
-                       } else if (note.days === 0) {
-                          statusColor = 'bg-orange-50 border-orange-100 text-orange-700';
-                          statusText = 'วันนี้';
-                       }
-                       return (
-                         <div key={note.id} className={`p-4 rounded-xl border flex justify-between items-center shadow-sm ${statusColor}`}>
-                            <div className="flex items-center gap-3"><div className={`p-2 rounded-lg bg-white/60`}>{note.type === 'ใส่ปุ๋ย' ? <Sprout size={20} /> : <Droplets size={20} />}</div><div><p className="font-bold text-sm">{note.orchard}</p><p className="text-xs opacity-80">{note.type}</p></div></div>
-                            <span className="text-xs font-bold bg-white/60 px-2 py-1 rounded-md">{statusText}</span>
-                         </div>
-                       );
+                      let statusColor = 'bg-blue-50 border-blue-100 text-blue-700';
+                      let statusText = `อีก ${note.days} วัน`;
+                      if (note.days < 0) {
+                        statusColor = 'bg-red-50 border-red-100 text-red-700';
+                        statusText = `เลยกำหนด ${Math.abs(note.days)} วัน`;
+                      } else if (note.days === 0) {
+                        statusColor = 'bg-orange-50 border-orange-100 text-orange-700';
+                        statusText = 'วันนี้';
+                      }
+                      return (
+                        <div key={note.id} className={`p-4 rounded-xl border flex justify-between items-center shadow-sm ${statusColor}`}>
+                          <div className="flex items-center gap-3"><div className={`p-2 rounded-lg bg-white/60`}>{note.type === 'ใส่ปุ๋ย' ? <Sprout size={20} /> : <Droplets size={20} />}</div><div><p className="font-bold text-sm">{note.orchard}</p><p className="text-xs opacity-80">{note.type}</p></div></div>
+                          <span className="text-xs font-bold bg-white/60 px-2 py-1 rounded-md">{statusText}</span>
+                        </div>
+                      );
                     })}
                   </div>
                 </section>
@@ -1741,52 +1750,50 @@ const App = () => {
               <section>
                 <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2"><Cloud size={20} className="text-blue-500"/> พยากรณ์อากาศ 7 วัน (กรุงชิง)</h3>
                 <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm overflow-x-auto">
-                   <div className="flex justify-between min-w-[600px] gap-4">
-                      {weatherData.map((d, i) => (
-                        <div key={i} className="flex flex-col items-center justify-center flex-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                           <span className="text-xs font-medium text-gray-500 mb-2">{d.day} {d.date}</span>
-                           <d.icon size={28} className={`mb-2 ${d.color}`} />
-                           <span className="text-lg font-bold text-gray-800">{d.temp}°</span>
-                        </div>
-                      ))}
-                   </div>
+                  <div className="flex justify-between min-w-[600px] gap-4">
+                    {weatherData.map((d, i) => (
+                      <div key={i} className="flex flex-col items-center justify-center flex-1 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        <span className="text-xs font-medium text-gray-500 mb-2">{d.day} {d.date}</span>
+                        <d.icon size={28} className={`mb-2 ${d.color}`} />
+                        <span className="text-lg font-bold text-gray-800">{d.temp}°</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
               <section>
-                 <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2"><Activity size={20} className="text-green-500"/> สถานะล่าสุดแต่ละแปลง</h3>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {latestActivities.map(item => (
-                       <div key={item.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex justify-between items-start mb-4">
-                             <div><h4 className="font-bold text-gray-800">{item.name}</h4><p className="text-xs text-gray-500">{item.area}</p></div>
-                             <div className="bg-green-50 p-1.5 rounded-lg"><Leaf size={16} className="text-green-600" /></div>
+                <h3 className="font-bold text-gray-800 text-lg mb-4 flex items-center gap-2"><Activity size={20} className="text-green-500"/> สถานะล่าสุดแต่ละแปลง</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {latestActivities.map(item => (
+                    <div key={item.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start mb-4">
+                        <div><h4 className="font-bold text-gray-800">{item.name}</h4><p className="text-xs text-gray-500">{item.area}</p></div>
+                        <div className="bg-green-50 p-1.5 rounded-lg"><Leaf size={16} className="text-green-600" /></div>
+                      </div>
+                      <div className="pt-4 border-t border-gray-100">
+                        {item.latest ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><span className={`w-2 h-2 rounded-full ${item.latest.type === 'ฉีดยา' ? 'bg-blue-500' : item.latest.type === 'ใส่ปุ๋ย' ? 'bg-green-500' : 'bg-orange-500'}`}></span>{item.latest.type}</div>
+                            <p className="text-xs text-gray-500 truncate">{item.latest.details}</p>
+                            <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><Clock size={10} /> {formatToThaiDate(item.latest.date)}</p>
                           </div>
-                          <div className="pt-4 border-t border-gray-100">
-                             {item.latest ? (
-                                <div className="space-y-2">
-                                   <div className="flex items-center gap-2 text-sm font-medium text-gray-700"><span className={`w-2 h-2 rounded-full ${item.latest.type === 'ฉีดยา' ? 'bg-blue-500' : item.latest.type === 'ใส่ปุ๋ย' ? 'bg-green-500' : 'bg-orange-500'}`}></span>{item.latest.type}</div>
-                                   <p className="text-xs text-gray-500 truncate">{item.latest.details}</p>
-                                   <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><Clock size={10} /> {formatToThaiDate(item.latest.date)}</p>
-                                </div>
-                             ) : <div className="text-center py-2 text-gray-400 text-xs">ยังไม่มีกิจกรรม</div>}
-                          </div>
-                       </div>
-                    ))}
-                 </div>
+                        ) : <div className="text-center py-2 text-gray-400 text-xs">ยังไม่มีกิจกรรม</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </section>
             </div>
           )}
           {activeTab === 'catalog' && <CatalogTab data={productsData} setData={setProductsData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} />}
-          {activeTab === 'harvest' && <HarvestTab data={salesData} setData={setSalesData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} fetchError={fetchError} />}
-          {activeTab === 'maintenance' && <MaintenanceTab data={maintenanceData} setData={setMaintenanceData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} fetchError={fetchError} />}
-          {activeTab === 'expenses' && <ExpensesTab data={expensesData} setData={setExpensesData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} />}
+          {activeTab === 'harvest' && <HarvestTab data={salesData} setData={setSalesData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} fetchError={fetchError} orchardList={orchardList} caretakerList={caretakerList} />}
+          {activeTab === 'maintenance' && <MaintenanceTab data={maintenanceData} setData={setMaintenanceData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} fetchError={fetchError} orchardList={orchardList} caretakerList={caretakerList} />}
+          {activeTab === 'expenses' && <ExpensesTab data={expensesData} setData={setExpensesData} syncToCloud={syncToCloud} isSyncing={isSyncing} onRefresh={fetchData} orchardList={orchardList} caretakerList={caretakerList} />}
           {activeTab === 'Chemicals' && <ChemicalsTab />}
           {activeTab === 'Fungicides' && <FungicidesTab />}
         </main>
-        </div>
       </div>
-      <AIAdvisor isOpen={aiAdvisorOpen} onClose={() => setAiAdvisorOpen(false)} />
-    </GeminiProvider>
+    </div>
   );
 };
 

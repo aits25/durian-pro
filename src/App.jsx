@@ -80,8 +80,9 @@ const CARETAKER_LIST = ["พี่เรย์-เอก", "ติง-พิม�
 
 const HARVEST_GRADES = [
   { id: 'grade_a', name: 'เบอร์ดี', color: 'bg-green-100 text-green-700', barColor: 'bg-green-500', hex: '#22c55e' },
-  { id: 'grade_top', name: 'เบอร์ท๊อป', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', hex: '#eab308' },
   { id: 'grade_fall', name: 'เบอร์ตกไซส์', color: 'bg-red-100 text-red-700', barColor: 'bg-red-500', hex: '#ef4444' },
+  { id: 'grade_top', name: 'เบอร์ท๊อป', color: 'bg-yellow-100 text-yellow-800', barColor: 'bg-yellow-500', hex: '#eab308' },
+  
 ];
 
 const EXPENSE_TYPES = [
@@ -469,6 +470,102 @@ const FungicidesTab = () => {
 };
 
 const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchError }) => { 
+    // --- Print Report Logic ---
+    const handlePrintReport = () => {
+      const now = new Date();
+      const thaiDate = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      const thaiTime = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+      const gradeColors = HARVEST_GRADES.reduce((acc, g) => { acc[g.name] = g.hex; return acc; }, {});
+      const gradeWeightRows = gradeWeightData.filter(g => g.value > 0).map(g => `
+        <tr>
+          <td style="padding:4px 8px;font-weight:bold;color:${gradeColors[g.name]};">${g.name}</td>
+          <td style="padding:4px 8px;text-align:right;">${g.value.toLocaleString()} กก.</td>
+          <td style="padding:4px 8px;text-align:right;">${((g.value/totalWeight)*100).toFixed(1)}%</td>
+        </tr>
+      `).join('');
+      const salesRows = filteredData.map(item => `
+        <tr>
+          <td style="padding:4px 8px;">${formatToThaiDate(item.date)}</td>
+          <td style="padding:4px 8px;">${item.orchard}</td>
+          <td style="padding:4px 8px;color:${gradeColors[item.type]||'#888'};font-weight:bold;">${item.type}</td>
+          <td style="padding:4px 8px;text-align:right;">${item.weight?.toLocaleString()}</td>
+          <td style="padding:4px 8px;text-align:right;">${item.price?.toLocaleString()}</td>
+          <td style="padding:4px 8px;text-align:right;">${item.total?.toLocaleString()}</td>
+          <td style="padding:4px 8px;">${item.caretaker||'-'}</td>
+        </tr>
+      `).join('');
+      // Find filtered orchard/caretaker for display
+      const orchardDisplay = filterOrchard === 'ทั้งหมด' ? 'ทุกสวน' : filterOrchard;
+      const caretakerDisplay = filterCaretaker === 'ทั้งหมด' ? 'ทุกผู้ดูแล' : filterCaretaker;
+
+      const html = `
+        <html>
+        <head>
+          <title>รายงานการขายทุเรียน</title>
+          <meta charset='utf-8'/>
+          <style>
+            body { font-family: 'Sarabun', 'Tahoma', Arial, sans-serif; background: #fff; color: #222; margin: 0; padding: 0; }
+            .report-container { max-width: 800px; margin: 24px auto; background: #fff; border-radius: 0; box-shadow: none; padding: 24px 0 0 0; }
+            h1 { color: #111; font-size: 1.5em; margin-bottom: 0.5em; font-weight: 700; letter-spacing: 0; }
+            .subtitle { color: #444; font-size: 1em; margin-bottom: 1.2em; font-weight: 400; }
+            .filter-info { font-size: 1em; color: #333; margin-bottom: 1.2em; display: flex; gap: 2em; }
+            .filter-info span { font-weight: 500; }
+            .kpi-cards { display: flex; gap: 16px; margin-bottom: 18px; }
+            .kpi { background: none; border-left: 3px solid #222; border-radius: 0; padding: 10px 18px; flex: 1; box-shadow: none; }
+            .kpi-title { color: #666; font-size: 0.98em; margin-bottom: 0.2em; font-weight: 400; }
+            .kpi-value { font-size: 1.2em; font-weight: 600; color: #111; }
+            .grade-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin-bottom: 8px; border: none; }
+            .grade-bar-segment { height: 100%; }
+            .grade-table, .sales-table { width: 100%; border-collapse: separate; border-spacing: 0; margin-bottom: 14px; font-size: 0.98em; border-radius: 8px; overflow: hidden; }
+            .grade-table th, .grade-table td, .sales-table th, .sales-table td { border: 1px solid #d1d5db; padding: 7px 10px; text-align: left; }
+            .grade-table th, .sales-table th { background: #f3f4f6; color: #111; font-size: 1em; font-weight: 600; border-bottom: 2px solid #222; }
+            .grade-table tr, .sales-table tr { background: none; }
+            .sales-table td { font-size: 0.98em; }
+            .section-title { font-size: 1.05em; color: #111; margin: 14px 0 6px; font-weight: 600; letter-spacing: 0; }
+            .footer-note { color:#888;font-size:0.95em;margin-top:18px;text-align:right; }
+            @media print { body { background: #fff; } .report-container { box-shadow: none; margin: 0; } }
+          </style>
+        </head>
+        <body>
+          <div class="report-container">
+            <h1>รายงานการขายทุเรียน</h1>
+            <div class="subtitle">วันที่พิมพ์: ${thaiDate} เวลา ${thaiTime}</div>
+            <div class="filter-info">
+              <div>สวน: <span>${orchardDisplay}</span></div>
+              <div>ผู้ดูแล: <span>${caretakerDisplay}</span></div>
+            </div>
+            <div class="kpi-cards">
+              <div class="kpi"><div class="kpi-title">ยอดขายรวม</div><div class="kpi-value">฿${totalSales.toLocaleString()}</div></div>
+              <div class="kpi"><div class="kpi-title">น้ำหนักรวม</div><div class="kpi-value">${totalWeight.toLocaleString()} กก.</div></div>
+              <div class="kpi"><div class="kpi-title">ราคาเฉลี่ย</div><div class="kpi-value">฿${avgPrice.toFixed(2)}</div></div>
+            </div>
+            <div class="section-title">สัดส่วนน้ำหนักตามเกรด</div>
+            <div class="grade-bar">
+              ${gradeWeightData.map(g => g.value > 0 ? `<div class="grade-bar-segment" style="width:${(g.value/totalWeight)*100}%;background:${g.hex};" title="${g.name}"></div>` : '').join('')}
+            </div>
+            <table class="grade-table">
+              <thead><tr><th>เกรด</th><th>น้ำหนัก (กก.)</th><th>สัดส่วน (%)</th></tr></thead>
+              <tbody>${gradeWeightRows}</tbody>
+            </table>
+            <div class="section-title">รายละเอียดการขาย (ตามเงื่อนไขที่กรอง)</div>
+            <table class="sales-table">
+              <thead>
+                <tr>
+                  <th>วันที่</th><th>สวน</th><th>เกรด</th><th>นน.</th><th>ราคา/กก.</th><th>ยอดสุทธิ</th><th>ผู้ดูแล</th>
+                </tr>
+              </thead>
+              <tbody>${salesRows}</tbody>
+            </table>
+            <div class="footer-note">* รายงานนี้สร้างจากข้อมูลที่กรอง ณ วันที่พิมพ์</div>
+          </div>
+          <script>window.onload = () => { window.print(); setTimeout(()=>window.close(), 500); };</script>
+        </body>
+        </html>
+      `;
+      const win = window.open('', '_blank');
+      win.document.write(html);
+      win.document.close();
+    };
   const [filterOrchard, setFilterOrchard] = useState('ทั้งหมด');
   const [filterStartDate, setFilterStartDate] = useState(''); 
   const [filterEndDate, setFilterEndDate] = useState('');    
@@ -583,6 +680,14 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-8">
+      <div className="flex justify-end">
+        <button
+          onClick={handlePrintReport}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded-lg shadow active:scale-95 transition-all mb-2"
+        >
+          <FileText size={18} /> พิมพ์รายงาน
+        </button>
+      </div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-1">บันทึกการขายและผลผลิต</h2>

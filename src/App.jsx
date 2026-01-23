@@ -680,14 +680,6 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-4 md:p-8">
-      <div className="flex justify-end">
-        <button
-          onClick={handlePrintReport}
-          className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded-lg shadow active:scale-95 transition-all mb-2"
-        >
-          <FileText size={18} /> พิมพ์รายงาน
-        </button>
-      </div>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold text-gray-800 mb-1">บันทึกการขายและผลผลิต</h2>
@@ -902,6 +894,13 @@ const HarvestTab = ({ data, setData, syncToCloud, isSyncing, onRefresh, fetchErr
                  {ORCHARD_LIST.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
                </select>
              </div>
+             <div className="flex justify-end">
+              <button onClick={handlePrintReport}
+                className="flex items-center gap-2 px-4 py-2 bg-green-700 hover:bg-green-800 text-white font-bold rounded-lg shadow active:scale-100 transition-all mb-2"
+              >
+                <FileText size={8} /> พิมพ์
+              </button>
+      </div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
              <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 text-xs font-semibold text-gray-500 border-b border-gray-100">
